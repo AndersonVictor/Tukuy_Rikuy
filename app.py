@@ -65,29 +65,45 @@ html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 .header-bar {{
     background: linear-gradient(135deg, {ROJO} 0%, {ROJO2} 60%, #3D0A14 100%);
     border-radius: 14px;
-    padding: 22px 32px;
+    padding: 18px 24px;
     margin-bottom: 22px;
-    display: flex; align-items: center; gap: 18px;
+    display: flex; align-items: center; gap: 16px;
     box-shadow: 0 6px 30px rgba(123,26,26,0.35);
+    flex-wrap: wrap;
 }}
+.header-logo {{ flex-shrink: 0; }}
+.header-logo img {{ height: 70px; display: block; }}
+.header-text {{ flex: 1; min-width: 220px; }}
 .header-bar h1 {{ 
     font-family: 'Montserrat', sans-serif; 
     color: #ffffff; 
-    font-size: 2.4rem; 
+    font-size: clamp(1.2rem, 4vw, 2.2rem);
     font-weight: 800; 
     margin: 0; 
     letter-spacing: .5px; 
+    line-height: 1.2;
 }}
 .header-bar h3 {{ 
     font-family: 'Montserrat', sans-serif; 
     color: rgba(255,255,255,0.95); 
-    font-size: 1.3rem; 
+    font-size: clamp(0.85rem, 2.5vw, 1.2rem);
     font-weight: 500; 
-    margin: 6px 0 0; 
+    margin: 5px 0 0; 
     letter-spacing: .3px; 
 }}
-.header-bar p  {{ color: rgba(255,255,255,.9); font-size: 1.15rem; margin: 6px 0 0; }}
+.header-bar p  {{ 
+    color: rgba(255,255,255,.9); 
+    font-size: clamp(0.75rem, 2vw, 1rem);
+    margin: 5px 0 0; 
+    font-weight: 600;
+    color: #F9E79F;
+    letter-spacing: 0.3px;
+}}
 .escudo {{ font-size: 3rem; line-height: 1; }}
+@media (max-width: 600px) {{
+    .header-bar {{ padding: 14px 14px; gap: 12px; border-radius: 10px; }}
+    .header-logo img {{ height: 52px; }}
+}}
 
 .kpi-card {{
     background: #fff;
@@ -277,14 +293,11 @@ else:
 
 st.markdown(f"""
 <div class="header-bar">
-  {logo_html}
-  <div>
+  <div class="header-logo">{logo_html}</div>
+  <div class="header-text">
     <h1>Corte Superior de Justicia de Junín</h1>
     <h3>Dashboard de Gestión Jurisdiccional</h3>
-    <p style="font-size: 1.2rem; margin-top: 10px; font-weight: 600; color: #F9E79F; letter-spacing: 0.5px;">
-      Presidente: Dr. Ricardo Corrales Melgarejo
-      | Gestión: 2025-2026 | Justica pronta, honesta e inclusiva.
-    </p>
+    <p>Presidente: Dr. Ricardo Corrales Melgarejo &nbsp;|&nbsp; Gestión: 2025-2026 &nbsp;|&nbsp; Justicia pronta, honesta e inclusiva.</p>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -357,10 +370,15 @@ with T_CAR:
     st.markdown('<div class="section-title">Evolución de la Carga Procesal por Especialidad</div>', unsafe_allow_html=True)
     st.markdown(
         """
-        <div style="margin: 6px 0 14px 0;">
+        <div style="margin: 6px 0 14px 0; display: flex; flex-wrap: wrap; gap: 10px;">
             <a href="https://drive.google.com/file/d/1SGrXdbKbevXpjRKkMHKs3RiILczEFTyF/view?usp=sharing" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">
                 <span style="display: inline-block; background: linear-gradient(135deg, #8B1A2B 0%, #6B0F1A 100%); color: #ffffff; padding: 10px 18px; border-radius: 10px; font-weight: 800; font-size: 1rem; letter-spacing: 0.3px; box-shadow: 0 4px 12px rgba(107,15,26,0.35);">
                     VER BOLETIN
+                </span>
+            </a>
+            <a href="https://drive.google.com/file/d/1pRExmTMKLBpif4rcb8J8_u0AlRZJFZ8m/view?usp=sharing" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">
+                <span style="display: inline-block; background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%); color: #ffffff; padding: 10px 18px; border-radius: 10px; font-weight: 800; font-size: 1rem; letter-spacing: 0.3px; box-shadow: 0 4px 12px rgba(21,101,192,0.35);">
+                    RESUMEN 2026
                 </span>
             </a>
         </div>
