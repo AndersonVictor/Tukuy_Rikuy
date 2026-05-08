@@ -380,7 +380,7 @@ def load_data(_excel_mtime, _excel_size):
 
     # Mapeo dinámico según cantidad de columnas reales
     n_cols = len(rp.columns)
-    # Estructura nueva (8 cols): Provincia,Total,JESP,Sala,Varones,Mujeres,Titulares,SupernProv
+    # Estructura (8 cols): Provincia,Total,JESP,Sala,... sin JPL separado
     col_names_8 = [
         "Provincia",
         "Total",
@@ -391,7 +391,19 @@ def load_data(_excel_mtime, _excel_size):
         "Titulares",
         "SupernProv",
     ]
-    # Estructura legada (10 cols): incluía JPL,JIP,JUP separados
+    # Estructura (9 cols) MAGISTRADOS POR PROVINCIA: J. ESP, JPL, SALA por separado
+    col_names_9 = [
+        "Provincia",
+        "Total",
+        "JESP",
+        "JPL",
+        "Sala",
+        "Varones",
+        "Mujeres",
+        "Titulares",
+        "SupernProv",
+    ]
+    # Estructura legada (10 cols): JPL,JIP,JUP + … → se fusiona a JESP
     col_names_10 = [
         "Provincia",
         "Total",
@@ -405,8 +417,11 @@ def load_data(_excel_mtime, _excel_size):
         "SupernProv",
     ]
 
-    if n_cols == 8:
+    if n_cols == 9:
+        rp.columns = col_names_9
+    elif n_cols == 8:
         rp.columns = col_names_8
+        rp["JPL"] = 0
     elif n_cols >= 10:
         rp.columns = (
             col_names_10[:n_cols]
@@ -418,24 +433,33 @@ def load_data(_excel_mtime, _excel_size):
             if c not in rp.columns:
                 rp[c] = 0
         rp["JESP"] = rp["JPL"] + rp["JIP"] + rp["JUP"]
+        # JPL/JIP/JUP conservan sus valores por columna; JESP es el total de los tres
         if "Titulares" not in rp.columns:
             rp["Titulares"] = 0
         if "SupernProv" not in rp.columns:
             rp["SupernProv"] = 0
     else:
-        # 1–7 cols: solo los nombres que alcanzan; 9 cols: variante (8 + columna extra típica en Excel)
+        # 1–7 cols u otros: nombres parciales
         if n_cols < 8:
             base_cols = col_names_8[:n_cols]
-        elif n_cols == 9:
-            base_cols = list(col_names_8) + ["Extra0"]
         else:
             base_cols = list(col_names_8) + [
                 f"Extra{i}" for i in range(n_cols - len(col_names_8))
             ]
         rp.columns = base_cols
-        for missing in ["JESP", "Sala", "Varones", "Mujeres", "Titulares", "SupernProv"]:
+        for missing in [
+            "JESP",
+            "JPL",
+            "Sala",
+            "Varones",
+            "Mujeres",
+            "Titulares",
+            "SupernProv",
+        ]:
             if missing not in rp.columns:
                 rp[missing] = 0
+    if "JPL" not in rp.columns:
+        rp["JPL"] = 0
 
     aud = xls.parse("Audiencias_Data")
     aud.columns = [
@@ -1355,6 +1379,7 @@ with T_RES:
         "Jueces (Varones)": "Varones",
         "Juezas (Mujeres)": "Mujeres",
         "Juzgados Especializados (J. ESP)": "JESP",
+        "Juzgados de Paz Letrado (JPL)": "JPL",
         "Salas": "Sala",
         "Titulares": "Titulares",
         "Supernumerarios/Provisionales": "SupernProv",
@@ -1400,6 +1425,9 @@ with T_RES:
             ft["properties"]["JESP"] = (
                 _safe_int(row_data.get("JESP", 0)) if hasattr(row_data, "get") else 0
             )
+            ft["properties"]["JPL"] = (
+                _safe_int(row_data.get("JPL", 0)) if hasattr(row_data, "get") else 0
+            )
             ft["properties"]["SALA"] = (
                 _safe_int(row_data.get("Sala", 0)) if hasattr(row_data, "get") else 0
             )
@@ -1416,6 +1444,7 @@ with T_RES:
             "Varones": "VARONES",
             "Mujeres": "MUJERES",
             "JESP": "JESP",
+            "JPL": "JPL",
             "Sala": "SALA",
             "Titulares": "TITULARES",
             "SupernProv": "SUPERN",
@@ -1468,11 +1497,13 @@ with T_RES:
         CS_VARONES = [[0, "#e6f0f7"], [0.5, "#4682B4"], [1, "#01497c"]]
         CS_MUJERES = [[0, "#ffeef3"], [0.5, "#ffb8cd"], [1, "#ff97b7"]]
 
+        CS_CELESTE_MAP = [[0, "#E0F7FA"], [0.5, "#4DD0E1"], [1, "#00838F"]]
         PLOTLY_CSCALES = {
             "Total": CS_GUINDO,
             "Varones": CS_VARONES,
             "Mujeres": CS_MUJERES,
             "JESP": CS_DORADO,
+            "JPL": CS_CELESTE_MAP,
             "Sala": CS_GUINDO,
             "Titulares": CS_VERDE,
             "SupernProv": CS_TIERRA,
@@ -1493,7 +1524,7 @@ with T_RES:
                     f"📍 {feat_data['PROV_LABEL']}<br>"
                     f"⚖️ Jueces y Juezas: {feat_data['Jueces y Juezas']}<br>"
                     f"♂ Jueces: {feat_data['VARONES']}  ♀ Juezas: {feat_data['MUJERES']}<br>"
-                    f"J. Esp.: {feat_data['JESP']}  Salas: {feat_data['SALA']}<br>"
+                    f"J. Esp.: {feat_data['JESP']}  JPL: {feat_data['JPL']}  Salas: {feat_data['SALA']}<br>"
                     f"Titulares: {feat_data['TITULARES']}  Supern.: {feat_data['SUPERN']}"
                 )
             else:
@@ -1632,12 +1663,18 @@ with T_RES:
         fig = px.bar(
             rp_plot,
             x="Provincia",
-            y=["Sala", "JESP"],
+            y=["Sala", "JPL", "JESP"],
             title="<b>Órganos Jurisdiccionales por Instancia</b>",
-            labels={"value": "Cantidades", "variable": "Tipo",
-                    "JESP": "J. Especializados", "Sala": "Sala"},
+            labels={
+                "value": "Cantidades",
+                "variable": "Tipo",
+                "JESP": "J. Especializados",
+                "JPL": "JPL",
+                "Sala": "Sala",
+            },
             color_discrete_map={
                 "Sala": "#E53935",
+                "JPL": "#00ACC1",
                 "JESP": "#F9A825",
             },
             barmode="stack",
@@ -1704,7 +1741,7 @@ with T_RES:
         st.plotly_chart(fig3, width="stretch", theme=None)
     with col_d:
         # Radar chart
-        cats = ["Sala", "JESP", "Varones", "Mujeres"]
+        cats = ["Sala", "JESP", "JPL", "Varones", "Mujeres"]
         rp_rad = rp_filt.copy()
         fig_rad = go.Figure()
         for i, (_, row) in enumerate(rp_rad.iterrows()):
