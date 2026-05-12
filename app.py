@@ -259,7 +259,7 @@ html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 )
 
 # ── Data loader ──────────────────────────────────────────────────────────────
-EXCEL_PATH = os.path.join(DATA_DIR, "DASHBOARD INGE.xlsx")
+EXCEL_PATH = os.path.join(DATA_DIR, "data.xlsx")
 
 
 @st.cache_data

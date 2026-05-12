@@ -21,7 +21,7 @@ import pandas as pd
 from openpyxl import load_workbook
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXCEL_PATH = os.path.join(BASE_DIR, "data", "DASHBOARD INGE.xlsx")
+EXCEL_PATH = os.path.join(BASE_DIR, "data", "data.xlsx")
 
 
 # ── 1. Alerta_Sobrecarga ──────────────────────────────────────────────────────
