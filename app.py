@@ -1,13 +1,16 @@
-import streamlit as st
+import base64
+import json
+import math
+import os
+
+import folium
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import folium
-from streamlit_folium import st_folium
-import json, math, os
-
 import plotly.io as pio
+import streamlit as st
+from plotly.subplots import make_subplots
+from streamlit_folium import st_folium
 
 
 def _ring_signed_area(lons, lats):
@@ -127,8 +130,6 @@ NUEVA_PALETA = [
     "#5D4037",  # Marrón
     "#546E7A",  # Gris
 ]
-
-import base64
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(ROOT, "data")
