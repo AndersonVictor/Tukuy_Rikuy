@@ -9,5 +9,5 @@ build/
 .venv/
 venv/
 *.log
-~$*.xlsx
+*.xlsx
 .DS_Store
