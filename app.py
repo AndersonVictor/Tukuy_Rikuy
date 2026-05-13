@@ -83,6 +83,23 @@ def _safe_int(val, default=0):
         return default
 
 
+def _plotly_step_colorscale(colors):
+    """Escala tipo escalón n‑valores para coropleta con z entero 0…n‑1 (Plotly normaliza a 0…1)."""
+    n = len(colors)
+    if n == 0:
+        return [[0, "#cccccc"], [1, "#cccccc"]]
+    if n == 1:
+        c = colors[0]
+        return [[0, c], [1, c]]
+    scale = []
+    for i, c in enumerate(colors):
+        lo = i / n
+        hi = (i + 1) / n
+        scale.append([lo, c])
+        scale.append([hi, c])
+    return scale
+
+
 # ── Config ──────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Dashboard CSJJ Junín",
@@ -1432,6 +1449,22 @@ with T_RES:
         "JUNIN": "Junín",
         "TAYACAJA": "Tayacaja",
     }
+    # Relleno fijo del mapa (claves = columna «Provincia» del Excel / PROV_LABEL)
+    MAP_PROVINCE_FILL_COLORS = {
+        "Junín": "#e3f6f5",
+        "Yauli": "#e5c1ab",
+        "Jauja": "#faf7c8",
+        "Concepción": "#ffe270",
+        "Huancayo": "#e5e7e1",
+        "Chupaca": "#fbea59",
+        "Tayacaja": "#dddf6d",
+        "Tarma": "#dbeb9a",
+    }
+    _prov_color_order = sorted(MAP_PROVINCE_FILL_COLORS.keys())
+    _prov_to_color_idx = {p: i for i, p in enumerate(_prov_color_order)}
+    _map_fill_colorscale = _plotly_step_colorscale(
+        [MAP_PROVINCE_FILL_COLORS[p] for p in _prov_color_order]
+    )
 
     # Selector de variable para colorear el mapa
     VAR_OPTIONS = {
@@ -1511,7 +1544,7 @@ with T_RES:
         }
         geo_field = GEO_FIELD[sel_var]
 
-        # Color scales per variable removed to use PLOTLY_CSCALES globally
+        # Coropleta: color de relleno fijo por provincia (MAP_PROVINCE_FILL_COLORS).
 
         # Pre-calculate bounds from province geometries
         all_lats, all_lons = [], []
@@ -1547,27 +1580,7 @@ with T_RES:
 
         # ── Mapa Plotly 100% offline (go.Choroplethmapbox + white-bg) ────────
         map_df = rp_filt[["Provincia", sel_var]].copy()
-
-        CS_GUINDO = [[0, "#F5E6E4"], [0.5, "#C4748A"], [1, "#8B1A2B"]]
-        CS_AZUL = [[0, "#B8D4EE"], [0.5, "#5B9BD5"], [1, "#2E6DA4"]]
-        CS_VERDE = [[0, "#C8E6C9"], [0.5, "#7DB88A"], [1, "#4A7C59"]]
-        CS_TIERRA = [[0, "#F2E8D9"], [0.5, "#D4A574"], [1, "#B5622B"]]
-        CS_VIOLETA = [[0, "#EDE3F5"], [0.5, "#B89CC8"], [1, "#7B4F8E"]]
-        CS_DORADO = [[0, "#FAF0C8"], [0.5, "#E8C568"], [1, "#C4952A"]]
-        CS_VARONES = [[0, "#e6f0f7"], [0.5, "#4682B4"], [1, "#01497c"]]
-        CS_MUJERES = [[0, "#ffeef3"], [0.5, "#ffb8cd"], [1, "#ff97b7"]]
-
-        CS_CELESTE_MAP = [[0, "#E0F7FA"], [0.5, "#4DD0E1"], [1, "#00838F"]]
-        PLOTLY_CSCALES = {
-            "Total": CS_GUINDO,
-            "Varones": CS_VARONES,
-            "Mujeres": CS_MUJERES,
-            "JESP": CS_DORADO,
-            "JPL": CS_CELESTE_MAP,
-            "Sala": CS_GUINDO,
-            "Titulares": CS_VERDE,
-            "SupernProv": CS_TIERRA,
-        }
+        z_prov_idx = map_df["Provincia"].map(_prov_to_color_idx)
 
         # Construir hover personalizado
         hover_texts = []
@@ -1582,6 +1595,7 @@ with T_RES:
             if feat_data:
                 hover_texts.append(
                     f"📍 {feat_data['PROV_LABEL']}<br>"
+                    f"<b>{sel_var_label}: {row[sel_var]}</b><br>"
                     f"⚖️ Jueces y Juezas: {feat_data['Jueces y Juezas']}<br>"
                     f"♂ Jueces: {feat_data['VARONES']}  ♀ Juezas: {feat_data['MUJERES']}<br>"
                     f"J. Esp.: {feat_data['JESP']}  JPL: {feat_data['JPL']}  Salas: {feat_data['SALA']}<br>"
@@ -1595,24 +1609,13 @@ with T_RES:
                 geojson=geo_dj,
                 locations=map_df["Provincia"],
                 featureidkey="properties.PROV_LABEL",
-                z=map_df[sel_var],
-                colorscale=PLOTLY_CSCALES.get(sel_var, "OrRd"),
+                z=z_prov_idx,
+                colorscale=_map_fill_colorscale,
                 marker_line_color="#6B0F1A",
                 marker_line_width=2,
                 text=hover_texts,
                 hoverinfo="text",
-                colorbar=dict(
-                    title=dict(text=sel_var_label, font=dict(size=12)),
-                    tickfont=dict(size=11),
-                    orientation="h",
-                    x=0.5,
-                    xpad=2,
-                    xanchor="center",
-                    y=-0.18,
-                    yanchor="top",
-                    len=0.8,
-                    thickness=11,
-                ),
+                showscale=False,
             )
         )
 
@@ -1664,7 +1667,7 @@ with T_RES:
                 fitbounds="locations",
                 visible=False,
                 bgcolor="rgba(242,232,217,0)",
-                domain=dict(x=[0,1], y=[0,1]),
+                domain=dict(x=[0, 1], y=[0, 1]),
             ),
             template="custom_theme",
             height=map_row_h,
@@ -1696,8 +1699,8 @@ with T_RES:
             x=sel_var,
             y="Provincia",
             orientation="h",
-            color=sel_var,
-            color_continuous_scale=PLOTLY_CSCALES.get(sel_var, CS_GUINDO),
+            color="Provincia",
+            color_discrete_map=MAP_PROVINCE_FILL_COLORS,
             title=f"<b>{sel_var_label} por Provincia</b>",
             text=sel_var,
         )
