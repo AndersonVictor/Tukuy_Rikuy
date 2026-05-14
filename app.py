@@ -777,7 +777,7 @@ with c1:
         f"""
     <div class="kpi-wrap">
       <div class="kpi-card">
-        <div class="kpi-val">121</div>
+        <div class="kpi-val">119</div>
         <div class="kpi-lbl">Jueces y Juezas</div>
         <div class="kpi-delta" style="font-size:1.2rem; font-weight:600; color:#555;">101 Órganos Jurisdiccionales</div>
       </div>
@@ -898,7 +898,7 @@ with T_CAR:
         y="Cantidad",
         color="Indicador",
         barmode="group",
-        title="<b>Resumen Anual: Ingresos, Carga Procesal y Resueltos</b>",
+        title="<b>Resumen Histórico: Ingresos, Carga Procesal y Resueltos desde 2018 al 2026</b>",
         color_discrete_map={
             "Ingresos": "#1f77b4",
             "Carga Procesal": "#ff7f0e",
@@ -1593,14 +1593,29 @@ with T_RES:
                     feat_data = ft["properties"]
                     break
             if feat_data:
-                hover_texts.append(
-                    f"📍 {feat_data['PROV_LABEL']}<br>"
-                    f"<b>{sel_var_label}: {row[sel_var]}</b><br>"
-                    f"⚖️ Jueces y Juezas: {feat_data['Jueces y Juezas']}<br>"
-                    f"♂ Jueces: {feat_data['VARONES']}  ♀ Juezas: {feat_data['MUJERES']}<br>"
-                    f"J. Esp.: {feat_data['JESP']}  JPL: {feat_data['JPL']}  Salas: {feat_data['SALA']}<br>"
-                    f"Titulares: {feat_data['TITULARES']}  Supern.: {feat_data['SUPERN']}"
+                parts = [
+                    f"📍 {feat_data['PROV_LABEL']}<br>",
+                    # Negrita solo en el nombre del indicador; el número queda fuera
+                    f"<b>{sel_var_label}</b>: {row[sel_var]}<br>",
+                ]
+                if sel_var != "Total":
+                    parts.append(
+                        f"<b>Jueces y Juezas</b>: {feat_data['Jueces y Juezas']}<br>"
+                    )
+                # Debajo del total: desglose Jueces / Juezas (etiquetas en negrita)
+                parts.append(
+                    f"♂ <b>Jueces</b>: {feat_data['VARONES']}  "
+                    f"♀ <b>Juezas</b>: {feat_data['MUJERES']}<br>"
                 )
+                parts.append(
+                    f"<b>Titulares</b>: {feat_data['TITULARES']}  "
+                    f"<b>Supernumerarios</b>: {feat_data['SUPERN']}<br>"
+                )
+                parts.append(
+                    f"<b>SALAS</b>: {feat_data['SALA']}  <b>J. Esp.</b>: {feat_data['JESP']}  "
+                    f"<b>JPL</b>: {feat_data['JPL']}"
+                )
+                hover_texts.append("".join(parts))
             else:
                 hover_texts.append(prov)
 
@@ -1724,22 +1739,34 @@ with T_RES:
     col_a, col_b = st.columns(2)
     with col_a:
         rp_plot = rp_filt.copy()
+        # Orden fijo capas / leyenda: Sala → JESP → JPL (evita orden alfabético de Plotly)
+        _inst_cols = ["Sala", "JESP", "JPL"]
+        _inst_leyenda = {"Sala": "Sala", "JESP": "J. Esp.", "JPL": "JPL"}
+        _tipo_order = [_inst_leyenda[c] for c in _inst_cols]
+        rp_inst = rp_plot.melt(
+            id_vars=["Provincia"],
+            value_vars=_inst_cols,
+            var_name="_cod",
+            value_name="Cantidades",
+        )
+        rp_inst["Tipo"] = rp_inst["_cod"].map(_inst_leyenda).astype(
+            pd.CategoricalDtype(categories=_tipo_order, ordered=True)
+        )
         fig = px.bar(
-            rp_plot,
+            rp_inst,
             x="Provincia",
-            y=["Sala", "JPL", "JESP"],
-            title="<b>Órganos Jurisdiccionales por Instancia</b>",
-            labels={
-                "value": "Cantidades",
-                "variable": "Tipo",
-                "JESP": "J. Especializados",
-                "JPL": "JPL",
-                "Sala": "Sala",
+            y="Cantidades",
+            color="Tipo",
+            category_orders={
+                "Tipo": _tipo_order,
+                "Provincia": list(rp_plot["Provincia"].unique()),
             },
+            title="<b>Órganos Jurisdiccionales por Instancia</b>",
+            labels={"Cantidades": "Cantidades", "Tipo": "Tipo"},
             color_discrete_map={
                 "Sala": "#E53935",
+                "J. Esp.": "#F9A825",
                 "JPL": "#00ACC1",
-                "JESP": "#F9A825",
             },
             barmode="stack",
         )
@@ -1787,7 +1814,7 @@ with T_RES:
             x="Provincia",
             y="Cantidad",
             color="CondicionLabel",
-            title="<b>Condición del Magistrado por Provincia</b>",
+            title="<b>Condición del Juez y Jueza por Provincia</b>",
             labels={"CondicionLabel": "Condición"},
             color_discrete_map={
                 "Titular": "#4A7C59",
@@ -1838,7 +1865,7 @@ with T_RES:
         clicked_prov if clicked_prov else sorted(dp["Provincia"].dropna().unique())[0]
     )
     prov_sel = st.selectbox(
-        "Seleccionar provincia (o haz clic en el mapa):",
+        "Seleccionar provincia:",
         sorted(dp["Provincia"].dropna().unique()),
         index=(
             list(sorted(dp["Provincia"].dropna().unique())).index(default_prov)
@@ -1875,7 +1902,12 @@ with T_RES:
             names="Condición",
             values="Cantidad",
             title="<b>Condición</b>",
-            color_discrete_sequence=[VERDE, "#B5622B", ROJO],
+            color="Condición",
+            color_discrete_map={
+                "Titular": VERDE,
+                "Provisionales": "#D4A574",
+                "Supernumerarios": "#aa62fa",
+            },
             hole=0.5,
         )
         fig6.update_layout(height=310, title_font_size=16)
