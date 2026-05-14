@@ -807,12 +807,12 @@ with c2:
     <div class="kpi-wrap">
       <div class="kpi-card kpi-split" style="display:flex; flex-direction:row; justify-content:space-around; align-items:center;">
         <div style="text-align:center;">
-          <div style="font-size:3.2rem; font-weight:800; color:#01497c; line-height:1;">80</div>
+          <div style="font-size:3.2rem; font-weight:800; color:#01497c; line-height:1;">79</div>
           <div style="font-size:1.2rem; font-weight:600; color:#555; margin-top:2px;">{juez_icon}Varones</div>
         </div>
         <div class="kpi-divider" style="width:2px; height:50px; background:#eee;"></div>
         <div style="text-align:center;">
-          <div style="font-size:3.2rem; font-weight:800; color:#ff97b7; line-height:1;">41</div>
+          <div style="font-size:3.2rem; font-weight:800; color:#ff97b7; line-height:1;">40</div>
           <div style="font-size:1.2rem; font-weight:600; color:#555; margin-top:2px;">{jueza_icon}Mujeres</div>
         </div>
       </div>
@@ -1814,7 +1814,7 @@ with T_RES:
             x="Provincia",
             y="Cantidad",
             color="CondicionLabel",
-            title="<b>Condición del Juez y Jueza por Provincia</b>",
+            title="<b>Condición de Juez y Jueza por Provincia</b>",
             labels={"CondicionLabel": "Condición"},
             color_discrete_map={
                 "Titular": "#4A7C59",
@@ -1920,10 +1920,20 @@ with T_RES:
             y="N",
             color="Sexo",
             barmode="group",
-            title="<b>Jueces y Juezas por Tipo de Órgano y Sexo</b>",
+            title="<b>Jueces y Juezas por Tipo de Instancia y Sexo</b>",
+            labels={
+                "TipoOrgano": "Tipo Instancia",
+                "N": "Cantidades",
+            },
             color_discrete_map={"Varón": "#01497c", "Mujer": "#ff97b7"},
         )
-        fig7.update_layout(template="custom_theme", height=310, title_font_size=16)
+        fig7.update_layout(
+            template="custom_theme",
+            height=310,
+            title_font_size=16,
+            xaxis_title="Tipo Instancia",
+            yaxis_title="Cantidades",
+        )
         st.plotly_chart(fig7, width="stretch", theme=None)
 
         show_cols = [
