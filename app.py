@@ -1,4 +1,5 @@
 import base64
+import html
 import json
 import math
 import os
@@ -81,6 +82,16 @@ def _safe_int(val, default=0):
         return int(x)
     except (TypeError, ValueError, OverflowError):
         return default
+
+
+def _format_pct_display(val, decimals=1):
+    """Formatea porcentaje para tablas: si viene como proporción (|x|≤1), multiplica por 100."""
+    x = pd.to_numeric(val, errors="coerce")
+    if pd.isna(x):
+        return ""
+    xf = float(x)
+    pct_pts = xf * 100.0 if abs(xf) <= 1.0 else xf
+    return f"{pct_pts:.{decimals}f}%"
 
 
 def _plotly_step_colorscale(colors):
@@ -319,34 +330,48 @@ html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 }}
 
 .personal-cards {{
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-content: start;
 }}
 
 .personal-card {{
-    flex: 1;
-    min-width: 110px;
+    min-height: 130px;
     background: white;
-    padding: 15px;
-    border-radius: 14px;
+    padding: 22px 16px;
+    border-radius: 16px;
     text-align: center;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.12);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }}
 
 .personal-card .card-label {{
     margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #555;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #444;
+    line-height: 1.35;
+    white-space: pre-line;
+    word-break: break-word;
 }}
 
 .personal-card .card-value {{
-    margin: 5px 0 0;
-    font-size: 2.5rem;
+    margin: 12px 0 0;
+    font-size: 3.1rem;
     font-weight: 800;
     line-height: 1;
+}}
+
+.personal-footnote {{
+    margin: 18px 0 0;
+    font-size: 0.9rem;
+    font-style: italic;
+    color: #666;
+    line-height: 1.45;
+    text-align: center;
 }}
 
 .xaxis-mobile-label {{
@@ -391,20 +416,73 @@ html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 
 @media (max-width: 768px) {{
     .map-title {{ font-size: 0.95rem; }}
-    .map-responsive-anchor + div [data-testid="stPlotlyChart"] > div {{
-        height: 60vh !important;
-        min-height: 320px !important;
-        max-height: 520px !important;
+    /* Columnas en móvil: sin «igualar altura» entre filas (evita hueco enorme arriba/abajo del mapa
+       cuando la columna vecina —p. ej. barras— es más alta). Escritorio: este bloque no aplica. */
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
+        flex: 0 0 auto !important;
+        min-height: 0 !important;
+        align-self: stretch !important;
+    }}
+    /* Menos «aire» entre filas dentro de columnas (mapa + barras al apilarse). */
+    [data-testid="stHorizontalBlock"] {{
+        gap: 10px !important;
+        align-items: stretch !important;
+    }}
+    /* Mapa: variable --geomap-dj-aspect se define junto al bloque del mapa. */
+    [data-testid="stElementContainer"].st-key-geomap_dj_provincias {{
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }}
+    [data-testid="stElementContainer"].st-key-geomap_dj_provincias [data-testid="stPlotlyChart"],
+    [data-testid="stPlotlyChart"].st-key-geomap_dj_provincias {{
+        padding: 0 !important;
+        margin: 0 !important;
+        line-height: 0 !important;
+        border: none !important;
+    }}
+    [data-testid="stElementContainer"].st-key-geomap_dj_provincias [data-testid="stPlotlyChart"] > div,
+    [data-testid="stPlotlyChart"].st-key-geomap_dj_provincias > div {{
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        aspect-ratio: var(--geomap-dj-aspect, 1.108) / 1 !important;
+        overflow: hidden !important;
+        min-height: 0 !important;
+    }}
+    [data-testid="stElementContainer"].st-key-geomap_dj_provincias .plotly-graph-div,
+    [data-testid="stElementContainer"].st-key-geomap_dj_provincias .js-plotly-plot,
+    .st-key-geomap_dj_provincias .plotly-graph-div {{
+        height: 100% !important;
+        width: 100% !important;
+        max-height: none !important;
+        min-height: 0 !important;
+    }}
+    [data-testid="stElementContainer"].st-key-geomap_dj_provincias .svg-container,
+    .st-key-geomap_dj_provincias .svg-container {{
+        height: 100% !important;
+        max-height: none !important;
+    }}
+    [data-testid="stElementContainer"].st-key-geomap_dj_provincias .main-svg,
+    .st-key-geomap_dj_provincias .main-svg {{
+        display: block !important;
+        max-height: none !important;
     }}
     .personal-title {{ font-size: 1.2rem; }}
     .personal-wrap {{ padding: 6px; gap: 14px; }}
     .personal-total {{ padding: 18px; }}
     .personal-total .total-label {{ font-size: 0.9rem; }}
     .personal-total .total-value {{ font-size: 3.2rem; }}
-    .personal-cards {{ gap: 10px; }}
-    .personal-card {{ min-width: 140px; flex: 1 1 45%; padding: 12px; }}
-    .personal-card .card-label {{ font-size: 0.9rem; }}
-    .personal-card .card-value {{ font-size: 1.8rem; }}
+    .personal-cards {{ grid-template-columns: 1fr; gap: 12px; }}
+    .personal-card {{ min-height: 100px; padding: 14px 12px; }}
+    .personal-card .card-label {{ font-size: 0.88rem; }}
+    .personal-card .card-value {{ font-size: 2.2rem; }}
     .pers-pie-anchor + div [data-testid="stPlotlyChart"] > div {{
         height: 45vh !important;
         min-height: 300px !important;
@@ -581,7 +659,7 @@ def load_data(_excel_mtime, _excel_size):
         "SupernProv",
     ]
     # Estructura legada (10 cols): JPL,JIP,JUP + … → se fusiona a JESP
-    col_names_10 = [
+    col_names_10_legacy = [
         "Provincia",
         "Total",
         "JPL",
@@ -593,24 +671,81 @@ def load_data(_excel_mtime, _excel_size):
         "Titulares",
         "SupernProv",
     ]
+    # MAGISTRADOS por provincia (10 cols nueva): última columna PROV./Provisionales
+    col_names_10_moderno = [
+        "Provincia",
+        "Total",
+        "JESP",
+        "JPL",
+        "Sala",
+        "Varones",
+        "Mujeres",
+        "Titulares",
+        "SupernProv",
+        "Provisionales",
+    ]
+
+    def _hdr_norm(rpin, ix):
+        if ix >= len(rpin.columns):
+            return ""
+        s = "".join(str(rpin.columns[ix]).strip().upper().split())
+        return s.replace(".", "").replace(",", "").replace("Ó", "O")
 
     if n_cols == 9:
         rp.columns = col_names_9
     elif n_cols == 8:
         rp.columns = col_names_8
         rp["JPL"] = 0
-    elif n_cols >= 10:
-        rp.columns = (
-            col_names_10[:n_cols]
-            if n_cols <= 10
-            else col_names_10 + [f"Extra{i}" for i in range(n_cols - 10)]
+    elif n_cols == 10:
+        h4 = _hdr_norm(rp, 4)
+        h5 = _hdr_norm(rp, 5)
+        h6 = _hdr_norm(rp, 6)
+        h9 = _hdr_norm(rp, 9)
+        tiene_col_provis = h9.startswith("PROV") or h9.startswith(
+            ("PROVIS", "PROVISION")
         )
+        # Moderno: Sala en col. antes de VARONES | Legado JUP: VARONES tras Sala (col. siguiente)
+        dispos_moderna = ("SALA" in h4 or "SALAS" in h4) and (
+            "VARONES" in h5 or "VARON" in h5
+        )
+        dispos_legado = ("SALA" in h5 or "SALAS" in h5) and (
+            "VARONES" in h6 or "VARON" in h6
+        )
+        if dispos_moderna:
+            rp.columns = col_names_10_moderno
+        elif dispos_legado:
+            rp.columns = col_names_10_legacy
+            for c in ["JPL", "JIP", "JUP"]:
+                if c not in rp.columns:
+                    rp[c] = 0
+            rp["JESP"] = rp["JPL"] + rp["JIP"] + rp["JUP"]
+            if "Titulares" not in rp.columns:
+                rp["Titulares"] = 0
+            if "SupernProv" not in rp.columns:
+                rp["SupernProv"] = 0
+        elif tiene_col_provis:
+            rp.columns = col_names_10_moderno
+        elif "VARONES" in h5 or "VARON" in h5:
+            rp.columns = col_names_10_moderno
+        else:
+            rp.columns = col_names_10_legacy
+            for c in ["JPL", "JIP", "JUP"]:
+                if c not in rp.columns:
+                    rp[c] = 0
+            rp["JESP"] = rp["JPL"] + rp["JIP"] + rp["JUP"]
+            if "Titulares" not in rp.columns:
+                rp["Titulares"] = 0
+            if "SupernProv" not in rp.columns:
+                rp["SupernProv"] = 0
+    elif n_cols > 10:
+        rp.columns = col_names_10_legacy + [
+            f"Extra{i}" for i in range(n_cols - len(col_names_10_legacy))
+        ]
         # Convertir formato legado a nuevo: fusionar JPL+JIP+JUP → JESP
         for c in ["JPL", "JIP", "JUP"]:
             if c not in rp.columns:
                 rp[c] = 0
         rp["JESP"] = rp["JPL"] + rp["JIP"] + rp["JUP"]
-        # JPL/JIP/JUP conservan sus valores por columna; JESP es el total de los tres
         if "Titulares" not in rp.columns:
             rp["Titulares"] = 0
         if "SupernProv" not in rp.columns:
@@ -632,11 +767,27 @@ def load_data(_excel_mtime, _excel_size):
             "Mujeres",
             "Titulares",
             "SupernProv",
+            "Provisionales",
         ]:
             if missing not in rp.columns:
                 rp[missing] = 0
     if "JPL" not in rp.columns:
         rp["JPL"] = 0
+    if "Provisionales" not in rp.columns:
+        rp["Provisionales"] = 0
+    for _rk in [
+        "Total",
+        "JESP",
+        "JPL",
+        "Sala",
+        "Varones",
+        "Mujeres",
+        "Titulares",
+        "SupernProv",
+        "Provisionales",
+    ]:
+        if _rk in rp.columns:
+            rp[_rk] = pd.to_numeric(rp[_rk], errors="coerce").fillna(0)
 
     aud = xls.parse("Audiencias_Data")
     aud.columns = [
@@ -724,17 +875,13 @@ def load_data(_excel_mtime, _excel_size):
     df_pob_proy = xls.parse("Pob_Proyeccion") if "Pob_Proyeccion" in xls.sheet_names else pd.DataFrame()
     df_jueces = xls.parse("Jueces_Pob_2026") if "Jueces_Pob_2026" in xls.sheet_names else pd.DataFrame()
     df_regimen = xls.parse("Personal_Regimen") if "Personal_Regimen" in xls.sheet_names else pd.DataFrame()
-    df_cargos_xls = xls.parse("Personal_Cargos") if "Personal_Cargos" in xls.sheet_names else pd.DataFrame()
-    for _c in ["LEY 29277", "728", "276", "CAS", "RECAS", "Total"]:
-        if _c in df_cargos_xls.columns:
-            df_cargos_xls[_c] = pd.to_numeric(df_cargos_xls[_c], errors="coerce").fillna(0).astype(int)
 
-    return cp, pob, dp, rp, aud, snej, df_alerta, df_pob_proy, df_jueces, df_regimen, df_cargos_xls
+    return cp, pob, dp, rp, aud, snej, df_alerta, df_pob_proy, df_jueces, df_regimen
 
 
 excel_mtime = os.path.getmtime(EXCEL_PATH) if os.path.exists(EXCEL_PATH) else 0
 excel_size = os.path.getsize(EXCEL_PATH) if os.path.exists(EXCEL_PATH) else 0
-cp, pob, dp, rp, aud, snej, df_alerta, df_pob_proy, df_jueces, df_regimen, df_cargos_xls = load_data(excel_mtime, excel_size)
+cp, pob, dp, rp, aud, snej, df_alerta, df_pob_proy, df_jueces, df_regimen = load_data(excel_mtime, excel_size)
 
 with st.sidebar:
     st.markdown("### 🔄 Datos")
@@ -1257,6 +1404,81 @@ with T_POB:
     )
     st.plotly_chart(fig, width="stretch", theme=None)
 
+    col_c, col_d = st.columns(2)
+    with col_c:
+        df_melt = df_pb.melt(
+            id_vars=["Provincia", "Año"],
+            value_vars=["Varones", "Mujeres"],
+            var_name="Sexo",
+            value_name="Poblacion",
+        )
+
+        n_provs = len(df_pb["Provincia"].unique())
+        n_rows = (n_provs + 1) // 2
+        fig3_height = max(520, n_rows * 275)
+
+        fig3 = px.line(
+            df_melt,
+            x="Año",
+            y="Poblacion",
+            color="Sexo",
+            facet_col="Provincia",
+            facet_col_wrap=2,
+            facet_row_spacing=0.12,
+            facet_col_spacing=0.08,
+            title="<b>Varones vs Mujeres por Provincia</b>",
+            color_discrete_map={"Varones": "#01497c", "Mujeres": "#ff97b7"},
+        )
+        fig3.update_traces(mode="lines+markers")
+        fig3.update_yaxes(
+            matches=None,
+            showticklabels=True,
+            automargin=True,
+            tickfont=dict(size=14),
+            ticklabelposition="outside",
+            title_standoff=10,
+        )
+        fig3.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+        fig3.update_layout(
+            template="custom_theme",
+            height=fig3_height,
+            title_font_size=16,
+            legend=dict(
+                orientation="h",
+                y=-0.1,
+                x=0.5,
+                xanchor="center",
+                yanchor="top",
+            ),
+            margin=dict(t=52, b=88, l=62, r=18),
+        )
+        st.plotly_chart(fig3, width="stretch", theme=None)
+    with col_d:
+        df_2031 = pob_provs[pob_provs["Año"] == 2031].sort_values(
+            "Total", ascending=True
+        )
+
+        fig4 = go.Figure(
+            go.Bar(
+                y=df_2031["Provincia"],
+                x=df_2031["Total"],
+                orientation="h",
+                marker=dict(
+                    color=[PROV_COLORS.get(p, "#1565C0") for p in df_2031["Provincia"]]
+                ),
+                text=df_2031["Total"].apply(lambda x: f"{x:,.0f}"),
+                textposition="outside",
+            )
+        )
+        fig4.update_layout(
+            template="custom_theme",
+            title="<b>Población Proyectada 2031 por Provincia</b>",
+            height=fig3_height,
+            title_font_size=16,
+            xaxis_title="Habitantes",
+        )
+        st.plotly_chart(fig4, width="stretch", theme=None)
+
     st.markdown(
         '<div class="section-title">Jueces por Población (Proyección 2026)</div>',
         unsafe_allow_html=True,
@@ -1329,76 +1551,49 @@ with T_POB:
             unsafe_allow_html=True,
         )
 
-    col_c, col_d = st.columns(2)
-    with col_c:
-        df_melt = df_pb.melt(
-            id_vars=["Provincia", "Año"],
-            value_vars=["Varones", "Mujeres"],
-            var_name="Sexo",
-            value_name="Poblacion",
-        )
-
-        n_provs = len(df_pb["Provincia"].unique())
-        n_rows = (n_provs + 1) // 2
-        fig3_height = max(400, n_rows * 200)
-
-        fig3 = px.line(
-            df_melt,
-            x="Año",
-            y="Poblacion",
-            color="Sexo",
-            facet_col="Provincia",
-            facet_col_wrap=2,
-            title="<b>Varones vs Mujeres por Provincia</b>",
-            color_discrete_map={"Varones": "#01497c", "Mujeres": "#ff97b7"},
-        )
-        fig3.update_traces(mode="lines+markers")
-        fig3.update_yaxes(matches=None, showticklabels=True)
-        fig3.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-        fig3.update_layout(
-            template="custom_theme",
-            height=fig3_height,
-            title_font_size=16,
-            legend=dict(
-                orientation="h",
-                y=-0.1,
-                x=0.5,
-                xanchor="center",
-                yanchor="top",
-            ),
-            margin=dict(t=50, b=80, l=10, r=10),
-        )
-        st.plotly_chart(fig3, width="stretch", theme=None)
-    with col_d:
-        df_2031 = pob_provs[pob_provs["Año"] == 2031].sort_values(
-            "Total", ascending=True
-        )
-
-        fig4 = go.Figure(
-            go.Bar(
-                y=df_2031["Provincia"],
-                x=df_2031["Total"],
-                orientation="h",
-                marker=dict(
-                    color=[PROV_COLORS.get(p, "#1565C0") for p in df_2031["Provincia"]]
-                ),
-                text=df_2031["Total"].apply(lambda x: f"{x:,.0f}"),
-                textposition="outside",
-            )
-        )
-        fig4.update_layout(
-            template="custom_theme",
-            title="<b>Población Proyectada 2031 por Provincia</b>",
-            height=fig3_height,
-            title_font_size=16,
-            xaxis_title="Habitantes",
-        )
-        st.plotly_chart(fig4, width="stretch", theme=None)
-
     with st.expander("🗂️ Ver tabla de datos"):
         df_show = df_pb.copy()
-        df_show.index = range(1, len(df_show) + 1)
-        st.dataframe(df_show, width="stretch")
+        for _col_pop in ("Varones", "Mujeres", "Total"):
+            df_show[_col_pop] = (
+                pd.to_numeric(df_show[_col_pop], errors="coerce").round().astype("Int64")
+            )
+        df_show["PctV"] = df_show["PctV"].map(lambda v: _format_pct_display(v, 1))
+        df_show["PctM"] = df_show["PctM"].map(lambda v: _format_pct_display(v, 1))
+        df_show["TasaCrec"] = df_show["TasaCrec"].map(lambda v: _format_pct_display(v, 2))
+        df_show = df_show.rename(
+            columns={
+                "TipoAnio": "Tipo de año",
+                "Varones": "Varones (hab.)",
+                "Mujeres": "Mujeres (hab.)",
+                "Total": "Población total (hab.)",
+                "PctV": "% Varones (sobre total)",
+                "PctM": "% Mujeres (sobre total)",
+                "TasaCrec": "Tasa de crecimiento anual",
+            }
+        )
+        df_show.insert(0, "#", range(1, len(df_show) + 1))
+        _pob_tbl_styler = (
+            df_show.style.set_properties(**{"text-align": "center"})
+            .set_table_styles(
+                [
+                    {
+                        "selector": "thead th",
+                        "props": [
+                            ("text-align", "center"),
+                            ("vertical-align", "middle"),
+                        ],
+                    },
+                    {
+                        "selector": "tbody td",
+                        "props": [
+                            ("text-align", "center"),
+                            ("vertical-align", "middle"),
+                        ],
+                    },
+                ]
+            )
+        )
+        st.dataframe(_pob_tbl_styler, width="stretch", hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 3 — RESUMEN & DETALLE PROVINCIA
@@ -1476,6 +1671,7 @@ with T_RES:
         "Salas": "Sala",
         "Titulares": "Titulares",
         "Supernumerarios/Provisionales": "SupernProv",
+        "Provisionales (PROV.)": "Provisionales",
     }
     sel_var_label = st.selectbox(
         "🎨 Variable a visualizar en el mapa:",
@@ -1530,6 +1726,11 @@ with T_RES:
             ft["properties"]["SUPERN"] = (
                 _safe_int(row_data.get("SupernProv", 0)) if hasattr(row_data, "get") else 0
             )
+            ft["properties"]["PROVIS"] = (
+                _safe_int(row_data.get("Provisionales", 0))
+                if hasattr(row_data, "get")
+                else 0
+            )
 
         # Map variable → GeoJSON field name
         GEO_FIELD = {
@@ -1541,6 +1742,7 @@ with T_RES:
             "Sala": "SALA",
             "Titulares": "TITULARES",
             "SupernProv": "SUPERN",
+            "Provisionales": "PROVIS",
         }
         geo_field = GEO_FIELD[sel_var]
 
@@ -1576,7 +1778,7 @@ with T_RES:
         _geo_aspect = (_dlon * math.cos(_mid_lat_rad)) / _dlat
         _est_map_w_px = 520
         map_row_h = int(_est_map_w_px / max(_geo_aspect, 0.35))
-        map_row_h = max(320, min(map_row_h, 680))
+        map_row_h = max(240, min(map_row_h, 680))
 
         # ── Mapa Plotly 100% offline (go.Choroplethmapbox + white-bg) ────────
         map_df = rp_filt[["Provincia", sel_var]].copy()
@@ -1609,6 +1811,7 @@ with T_RES:
                 )
                 parts.append(
                     f"<b>Titulares</b>: {feat_data['TITULARES']}  "
+                    f"<b>Provisionales</b>: {feat_data.get('PROVIS', 0)}  "
                     f"<b>Supernumerarios</b>: {feat_data['SUPERN']}<br>"
                 )
                 parts.append(
@@ -1618,6 +1821,23 @@ with T_RES:
                 hover_texts.append("".join(parts))
             else:
                 hover_texts.append(prov)
+
+        hover_by_prov = dict(zip(map_df["Provincia"].tolist(), hover_texts))
+        # Marcadores invisibles en el centroide: zona de hover más grande (Chupaca es angosta/pequeña).
+        _hit_lat, _hit_lon, _hit_htext, _hit_size = [], [], [], []
+        _marker_hit_base = 28
+        _marker_hit_boost = {"Chupaca": 48}
+        for ft in geo_dj["features"]:
+            prov_label = ft["properties"].get("PROV_LABEL")
+            if prov_label not in hover_by_prov:
+                continue
+            la, lo = _label_point_latlon_for_feature(ft)
+            if la is None or lo is None:
+                continue
+            _hit_lat.append(la)
+            _hit_lon.append(lo)
+            _hit_htext.append(hover_by_prov[prov_label])
+            _hit_size.append(_marker_hit_boost.get(prov_label, _marker_hit_base))
 
         fig_map = go.Figure(
             go.Choropleth(
@@ -1657,7 +1877,7 @@ with T_RES:
                     family="Arial Black, Inter, sans-serif",
                 ),
                 textposition="middle center",
-                hoverinfo="none",
+                hoverinfo="skip",
                 showlegend=False,
             )
         )
@@ -1672,7 +1892,24 @@ with T_RES:
                     size=11, color="#000000", family="Arial Black, Inter, sans-serif"
                 ),
                 textposition="middle center",
-                hoverinfo="none",
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+
+        fig_map.add_trace(
+            go.Scattergeo(
+                lat=_hit_lat,
+                lon=_hit_lon,
+                mode="markers",
+                marker=dict(
+                    size=_hit_size,
+                    color="rgba(0,0,0,0)",
+                    opacity=0,
+                    line=dict(width=0),
+                ),
+                text=_hit_htext,
+                hovertemplate="%{text}<extra></extra>",
                 showlegend=False,
             )
         )
@@ -1687,21 +1924,28 @@ with T_RES:
             template="custom_theme",
             height=map_row_h,
             autosize=True,
-            margin=dict(l=2, r=20, t=0, b=2, pad=80),
+            margin=dict(l=0, r=0, t=0, b=0, pad=0),
             title=None,
             paper_bgcolor="rgba(242,232,217,0)",
         )
-        # Título fuera del Figure: Plotly reserva mucho espacio vertical al `layout.title`
+        # Título fuera del Figure. --geomap-dj-aspect alimenta las reglas móviles del bloque global
+        # usando la clase st-key-* del key= de Streamlit (más fiable que selectores hermano adyacente).
+        _aspect_s = f"{_geo_aspect:.6f}".rstrip("0").rstrip(".") or "1"
         st.markdown(
-            f'<p class="map-title">Mapa: {sel_var_label} por provincia</p>',
+            f"""<p class="map-title">Mapa: {html.escape(sel_var_label)} por provincia</p>
+<style>:root {{ --geomap-dj-aspect: {_aspect_s}; }}</style>
+<div class="map-responsive-anchor" aria-hidden="true"></div>""",
             unsafe_allow_html=True,
         )
-        st.markdown('<div class="map-responsive-anchor"></div>', unsafe_allow_html=True)
+        # Altura del contenedor Streamlit: por defecto «content». Evitar height="stretch" aquí:
+        # en móvil, al apilarse columnas, stretch igualaba la altura de la fila del mapa a la
+        # columna de barras (más alta) y aparecían franjas vacías arriba y abajo del mapa.
         st.plotly_chart(
             fig_map,
-            use_container_width=True,
+            width="stretch",
             theme=None,
-            config={"displayModeBar": True, "responsive": True},
+            key="geomap_dj_provincias",
+            config={"displayModeBar": True, "responsive": True, "autosizable": True},
         )
 
         clicked_prov = None
@@ -1809,6 +2053,12 @@ with T_RES:
             .reset_index(name="Cantidad")
         )
         cond_prov = cond_prov[cond_prov["Provincia"].isin(rp_filt["Provincia"])]
+        _cond_leyenda_order = ["Titular", "Provisionales", "Supernumerarios"]
+        _cond_extra_lbl = sorted(
+            x
+            for x in cond_prov["CondicionLabel"].dropna().unique()
+            if x not in _cond_leyenda_order
+        )
         fig3 = px.bar(
             cond_prov,
             x="Provincia",
@@ -1822,6 +2072,9 @@ with T_RES:
                 "Supernumerarios": "#8B1A2B",
             },
             barmode="stack",
+            category_orders={
+                "CondicionLabel": _cond_leyenda_order + _cond_extra_lbl,
+            },
         )
         fig3.update_layout(
             template="custom_theme",
@@ -1893,10 +2146,24 @@ with T_RES:
             hole=0.5,
         )
         fig5.update_layout(height=310, title_font_size=16)
+        fig5.update_traces(
+            textfont=dict(color="white"),
+            insidetextfont=dict(color="white"),
+            outsidetextfont=dict(color="white"),
+        )
         st.plotly_chart(fig5, width="stretch", theme=None)
 
         cond_cnt = df_det["CondicionLabel"].value_counts().reset_index()
         cond_cnt.columns = ["Condición", "Cantidad"]
+        _cond_pie_order = ["Titular", "Provisionales", "Supernumerarios"]
+        _cond_pie_extra = sorted(
+            x for x in cond_cnt["Condición"].unique() if x not in _cond_pie_order
+        )
+        _pie_cats = _cond_pie_order + _cond_pie_extra
+        cond_cnt["Condición"] = pd.Categorical(
+            cond_cnt["Condición"], categories=_pie_cats, ordered=True
+        )
+        cond_cnt = cond_cnt.sort_values("Condición")
         fig6 = px.pie(
             cond_cnt,
             names="Condición",
@@ -1908,9 +2175,15 @@ with T_RES:
                 "Provisionales": "#D4A574",
                 "Supernumerarios": "#aa62fa",
             },
+            category_orders={"Condición": _pie_cats},
             hole=0.5,
         )
         fig6.update_layout(height=310, title_font_size=16)
+        fig6.update_traces(
+            textfont=dict(color="white"),
+            insidetextfont=dict(color="white"),
+            outsidetextfont=dict(color="white"),
+        )
         st.plotly_chart(fig6, width="stretch", theme=None)
     with col_f:
         tipo_sex = df_det.groupby(["TipoOrgano", "Sexo"]).size().reset_index(name="N")
@@ -1920,9 +2193,9 @@ with T_RES:
             y="N",
             color="Sexo",
             barmode="group",
-            title="<b>Jueces y Juezas por Tipo de Instancia y Sexo</b>",
+            title="<b>Jueces y Juezas por Instancia y Sexo</b>",
             labels={
-                "TipoOrgano": "Tipo Instancia",
+                "TipoOrgano": "Instancia",
                 "N": "Cantidades",
             },
             color_discrete_map={"Varón": "#01497c", "Mujer": "#ff97b7"},
@@ -1931,7 +2204,7 @@ with T_RES:
             template="custom_theme",
             height=310,
             title_font_size=16,
-            xaxis_title="Tipo Instancia",
+            xaxis_title="Instancia",
             yaxis_title="Cantidades",
         )
         st.plotly_chart(fig7, width="stretch", theme=None)
@@ -1944,9 +2217,16 @@ with T_RES:
             "Numero",
             "CondicionLabel",
         ]
-        df_show = df_det[show_cols].copy()
-        df_show.index = range(1, len(df_show) + 1)
-        st.dataframe(df_show, width="stretch")
+        df_show = df_det[show_cols].copy().reset_index(drop=True)
+        df_show = df_show.rename(
+            columns={
+                "TipoOrgano": "Instancia",
+                "Numero": "Número",
+                "CondicionLabel": "Condición",
+            }
+        )
+        df_show.insert(0, "#", range(1, len(df_show) + 1))
+        st.dataframe(df_show, width="stretch", hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 4 — AUDIENCIAS
@@ -2293,76 +2573,69 @@ with T_PER:
     )
 
     # Personal por régimen leído desde la hoja Personal_Regimen del Excel
-    df_pers = df_regimen.rename(columns={"Regimen": "Régimen"})
-    _reg_vals = dict(zip(df_pers["Régimen"], df_pers["Cantidad"]))
-    _total_pers = int(df_pers["Cantidad"].sum())
+    if df_regimen.empty:
+        st.info('No hay datos en la hoja **Personal_Regimen**.')
+    else:
+        df_pers = df_regimen.rename(columns={"Regimen": "Régimen"})
+        df_pers["Cantidad"] = pd.to_numeric(
+            df_pers["Cantidad"], errors="coerce"
+        ).fillna(0).astype(int)
+        _total_pers = int(df_pers["Cantidad"].sum())
+        _reg_palette = ["#1565C0", "#F9A825", "#2E7D32", "#E53935", "#6A1B9A"]
+        _color_map = {
+            str(r["Régimen"]): _reg_palette[i % len(_reg_palette)]
+            for i, (_, r) in enumerate(df_pers.iterrows())
+        }
 
-    col_p1, col_p2 = st.columns([1, 2])
-    with col_p1:
-        fig_pers = px.pie(
-            df_pers,
-            names="Régimen",
-            values="Cantidad",
-            hole=0.5,
-            title="<b>Distribución por Régimen Laboral</b>",
-            color="Régimen",
-            color_discrete_sequence=[
-                "#1565C0",
-                "#F9A825",
-                "#2E7D32",
-                "#E53935",
-                "#6A1B9A",
-            ],
-        )
-        fig_pers.update_traces(
-            textinfo="value+percent",
-            textfont_size=16,
-            marker=dict(line=dict(color="#FFFFFF", width=2)),
-        )
-        fig_pers.update_layout(height=420, title_font_size=16, margin=dict(t=40, b=10))
-        st.markdown('<div class="pers-pie-anchor"></div>', unsafe_allow_html=True)
-        st.plotly_chart(fig_pers, width="stretch", theme=None)
+        col_p1, col_p2 = st.columns([1, 2])
+        with col_p1:
+            fig_pers = px.pie(
+                df_pers,
+                names="Régimen",
+                values="Cantidad",
+                hole=0.5,
+                title="<b>Distribución por Régimen Laboral</b>",
+                color="Régimen",
+                color_discrete_map=_color_map,
+            )
+            fig_pers.update_traces(
+                textinfo="value+percent",
+                textfont_size=16,
+                marker=dict(line=dict(color="#FFFFFF", width=2)),
+            )
+            fig_pers.update_layout(
+                height=420, title_font_size=16, margin=dict(t=40, b=10)
+            )
+            st.markdown('<div class="pers-pie-anchor"></div>', unsafe_allow_html=True)
+            st.plotly_chart(fig_pers, width="stretch", theme=None)
 
-    with col_p2:
-        st.markdown(
-            f"""
+        with col_p2:
+            _cards_parts = []
+            for i, (_, row) in enumerate(df_pers.iterrows()):
+                _lab = str(row["Régimen"])
+                _qty = int(row["Cantidad"])
+                _col = _color_map.get(_lab, _reg_palette[i % len(_reg_palette)])
+                _cards_parts.append(
+                    f'<div class="personal-card" style="border-bottom:6px solid {_col};">'
+                    f'<div class="card-label">{html.escape(_lab)}</div>'
+                    f'<div class="card-value" style="color:{_col};">{_qty:,}</div></div>'
+                )
+            _cards_html = "".join(_cards_parts)
+            st.markdown(
+                f"""
         <div class="personal-wrap">
             <div class="personal-total">
                 <div class="total-label">TOTAL PERSONAL JURISDICCIONAL</div>
                 <div class="total-value">{_total_pers:,}</div>
             </div>
             <div class="personal-cards">
-                <div class="personal-card" style="border-bottom:6px solid #F9A825;">
-                    <div class="card-label">728</div>
-                    <div class="card-value" style="color:#F9A825;">{_reg_vals.get('728', 0)}</div>
-                </div>
-                <div class="personal-card" style="border-bottom:6px solid #E53935;">
-                    <div class="card-label">CAS</div>
-                    <div class="card-value" style="color:#E53935;">{_reg_vals.get('CAS', 0)}</div>
-                </div>
-                <div class="personal-card" style="border-bottom:6px solid #6A1B9A;">
-                    <div class="card-label">RECAS</div>
-                    <div class="card-value" style="color:#6A1B9A;">{_reg_vals.get('RECAS', 0)}</div>
-                </div>
-                <div class="personal-card" style="border-bottom:6px solid #1565C0;">
-                    <div class="card-label">LEY 29277</div>
-                    <div class="card-value" style="color:#1565C0;">{_reg_vals.get('LEY 29277', 0)}</div>
-                </div>
-                <div class="personal-card" style="border-bottom:6px solid #2E7D32;">
-                    <div class="card-label">276</div>
-                    <div class="card-value" style="color:#2E7D32;">{_reg_vals.get('276', 0)}</div>
-                </div>
+                {_cards_html}
             </div>
+            <p class="personal-footnote">* Se incluyen al Presidente de Corte y a la Jefa de ODANC</p>
         </div>
         """,
-            unsafe_allow_html=True,
-        )
-
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    with st.expander("🗂️ Ver desglose detallado por Cargo"):
-        st.dataframe(df_cargos_xls, width="stretch")
-
+                unsafe_allow_html=True,
+            )
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown(
     f"""
